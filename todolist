@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, Date
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import sessionmaker
 
 engine = create_engine('sqlite:///todo.db?check_same_thread=False')
@@ -25,33 +25,68 @@ Base.metadata.create_all(engine)
 
 def add_task():
     user_task = input('Enter task\n')
+    user_deadline = input('Enter deadline\n')
+    frmt = '%Y-%m-%d'
+    user_deadline = datetime.strptime(user_deadline, frmt)
     session = Session()
-    new_task = task(task=user_task, deadline=datetime.today())
+    new_task = task(task=user_task, deadline=user_deadline)
     session.add(new_task)
     session.commit()
     print('The task has been added!\n')
 
 
 def task_to_do():
+    today_date = datetime.today()
+    print(f"Today {today_date.day} {today_date.strftime('%b')}")
     session = Session()
-    rows = session.query(task).all()
+    rows = session.query(task).filter(task.deadline == today_date.date()).all()
     if len(rows) == 0:
         print('Nothing to do!\n')
     else:
-        print('Today:')
         for i in range(len(rows)):
-            print(str(i+1)+'.', rows[i])
+            print(str(i + 1) + '.', rows[i])
         print()
+
+
+def week_tasks():
+    today = datetime.today()
+    session = Session()
+    for day in range(7):
+        day_of_week = today + timedelta(days=day)
+        print(f"{day_of_week.strftime('%A')} {day_of_week.day} {day_of_week.strftime('%b')}:")
+        rows = session.query(task).filter(task.deadline == day_of_week.date()).all()
+        if len(rows) == 0:
+            print('Nothing to do!\n')
+        else:
+            for i in range(len(rows)):
+                print(str(i + 1) + '.', rows[i])
+            print()
+
+
+def all_tasks():
+    session = Session()
+    count = 1
+    print('All tasks:')
+    rows = session.query(task).order_by(task.deadline).all()
+    for i in rows:
+        print(f"{count}. {i}. {i.deadline.day} {i.deadline.strftime('%b')}")
+        count += 1
 
 
 while True:
     print("1) Today's tasks")
-    print("2) Add task")
+    print("2) Week's tasks")
+    print('3) All tasks')
+    print("4) Add task")
     print("0) Exit")
     user_choice = int(input())
     if user_choice == 1:
         task_to_do()
     elif user_choice == 2:
+        week_tasks()
+    elif user_choice == 3:
+        all_tasks()
+    elif user_choice == 4:
         add_task()
     elif user_choice == 0:
         print('\nBye!')
